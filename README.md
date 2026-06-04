@@ -70,6 +70,23 @@ Open <http://localhost:3000>.
 
 ---
 
+## Your API key, securely (set once — never per use)
+
+The app reads your key from the `ANTHROPIC_API_KEY` **environment variable** — never
+from the code or the UI. You set it **once** per place you run the app, and it stays
+out of the repo (`.env*` is gitignored). There is no per-search key prompt.
+
+| Where you run it | Where to put the key (its secret store) |
+| --- | --- |
+| **Production (Vercel)** | Project → **Settings → Environment Variables** → add `ANTHROPIC_API_KEY`. Encrypted at rest, injected at runtime. This is the permanent "set it once" home. |
+| **Claude Code on the web** | Add it as a secret/env var in your environment's configuration so future sessions have it automatically — see <https://code.claude.com/docs/en/claude-code-on-the-web>. |
+| **Local development** | `.env.local` (created in step 2). Gitignored, persists between runs. |
+
+**Never** hardcode the key in source or commit a `.env` file. If a key is ever exposed,
+rotate it at <https://console.anthropic.com/>.
+
+---
+
 ## Deploy (Vercel)
 
 1. Push this repo to GitHub.
