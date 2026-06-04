@@ -28,8 +28,8 @@ body {
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -46,10 +46,10 @@ header.hero {
 }
 
 .hero h1 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 800;
   font-size: clamp(30px, 6vw, 46px);
   margin: 0 0 6px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
   color: var(--cream);
 }
 
@@ -201,7 +201,8 @@ form.search {
 .card h3 {
   margin: 0 0 4px;
   font-size: 18px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--cream);
 }
 
