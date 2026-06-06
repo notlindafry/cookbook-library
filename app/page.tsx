@@ -73,7 +73,7 @@ export default function Home() {
   return (
     <div className="wrap">
       <header className="hero">
-        <h1>Linda&apos;s Cookbook Collection Recipe Search</h1>
+        <h1>Linda&apos;s Cookbook Collection Search</h1>
         <p>Search your cookbook collection in plain English.</p>
 
         <form className="search" onSubmit={onSubmit}>

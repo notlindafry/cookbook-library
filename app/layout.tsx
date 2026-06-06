@@ -10,7 +10,7 @@ const sans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Linda's Cookbook Collection Recipe Search",
+  title: "Linda's Cookbook Collection Search",
   description:
     "Search Linda's cookbook collection in plain English — find recipes by dish, ingredient, cuisine, or mood.",
 };
