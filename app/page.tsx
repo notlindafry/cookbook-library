@@ -1,38 +1,91 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { CATEGORIES, INGREDIENTS, TRIED_TAGS } from "@/lib/vocab";
-import type { SearchResponse } from "@/lib/types";
+import type {
+  SearchResponse,
+  MenuResponse,
+  MetaResponse,
+  UiFilters,
+} from "@/lib/types";
 import MultiSelect from "./components/MultiSelect";
+import RecipeCard from "./components/RecipeCard";
+
+const WANT_TO_MAKE = "I really want to make this";
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [triedTags, setTriedTags] = useState<string[]>([]);
+  const [books, setBooks] = useState<string[]>([]);
+  const [authors, setAuthors] = useState<string[]>([]);
+  const [excludeIngredients, setExcludeIngredients] = useState<string[]>([]);
+  const [cuisines, setCuisines] = useState<string[]>([]);
+  const [untriedOnly, setUntriedOnly] = useState(false);
+  const [hasLink, setHasLink] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SearchResponse | null>(null);
+  const [menu, setMenu] = useState<MenuResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [meta, setMeta] = useState<MetaResponse | null>(null);
 
-  async function runSearch(q: string) {
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/meta");
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (res.ok) setMeta(await res.json());
+      } catch {
+        /* meta is optional; ignore */
+      }
+    })();
+  }, []);
+
+  const canEdit = meta?.features.writeback ?? false;
+
+  function currentFilters(overrides?: Partial<UiFilters>): UiFilters {
+    return {
+      categories,
+      ingredients,
+      triedTags,
+      books,
+      authors,
+      excludeIngredients,
+      cuisines,
+      untriedOnly,
+      hasLink,
+      ...overrides,
+    };
+  }
+
+  const post = useCallback(async (url: string, body: unknown) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401) {
+      window.location.href = "/login";
+      return null;
+    }
+    return res;
+  }, []);
+
+  async function doSearch(q: string, filters: UiFilters) {
     setLoading(true);
     setError(null);
     setSearched(true);
+    setMenu(null);
     try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: q,
-          filters: { categories, ingredients, triedTags },
-        }),
-      });
-      if (res.status === 401) {
-        // Session expired — send back to login.
-        window.location.href = "/login";
-        return;
-      }
+      const res = await post("/api/search", { query: q, filters });
+      if (!res) return;
       const json = await res.json();
       if (!res.ok) {
         setError(json.error || "Search failed.");
@@ -48,15 +101,94 @@ export default function Home() {
     }
   }
 
+  async function doSimple(
+    url: string,
+    body: unknown,
+    note: string,
+  ) {
+    setLoading(true);
+    setError(null);
+    setSearched(true);
+    setMenu(null);
+    try {
+      const res = await post(url, body);
+      if (!res) return;
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Request failed.");
+        setData(null);
+      } else {
+        setData({
+          results: json.results ?? [],
+          spec: null,
+          aiPowered: false,
+          totalRecipes: json.totalRecipes ?? 0,
+          note: json.results?.length ? note : "No matches. Try loosening your filters.",
+        });
+      }
+    } catch {
+      setError("Could not reach the server. Please try again.");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function doMenu() {
+    setLoading(true);
+    setError(null);
+    setSearched(true);
+    setData(null);
+    try {
+      const res = await post("/api/menu", {
+        query,
+        filters: currentFilters(),
+      });
+      if (!res) return;
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Menu planning failed.");
+        setMenu(null);
+      } else {
+        setMenu(json as MenuResponse);
+      }
+    } catch {
+      setError("Could not reach the server. Please try again.");
+      setMenu(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    runSearch(query);
+    doSearch(query, currentFilters());
+  }
+
+  function surprise() {
+    doSimple("/api/random", { filters: currentFilters(), count: 5 }, "A few picks for you 🎲");
+  }
+
+  function wantToMake() {
+    setTriedTags([WANT_TO_MAKE]);
+    doSearch("", currentFilters({ triedTags: [WANT_TO_MAKE] }));
+  }
+
+  function moreLikeThis(id: number) {
+    doSimple("/api/similar", { id }, "Similar recipes");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function clearFilters() {
     setCategories([]);
     setIngredients([]);
     setTriedTags([]);
+    setBooks([]);
+    setAuthors([]);
+    setExcludeIngredients([]);
+    setCuisines([]);
+    setUntriedOnly(false);
+    setHasLink(false);
   }
 
   async function logout() {
@@ -68,7 +200,17 @@ export default function Home() {
   }
 
   const hasFilters =
-    categories.length > 0 || ingredients.length > 0 || triedTags.length > 0;
+    categories.length > 0 ||
+    ingredients.length > 0 ||
+    triedTags.length > 0 ||
+    books.length > 0 ||
+    authors.length > 0 ||
+    excludeIngredients.length > 0 ||
+    cuisines.length > 0 ||
+    untriedOnly ||
+    hasLink;
+
+  const cuisineAvailable = meta?.features.cuisine ?? false;
 
   return (
     <div className="wrap">
@@ -88,6 +230,18 @@ export default function Home() {
             {loading ? "Searching…" : "Search"}
           </button>
         </form>
+
+        <div className="actions">
+          <button type="button" className="action" onClick={doMenu} disabled={loading}>
+            🍽 Plan a menu
+          </button>
+          <button type="button" className="action" onClick={surprise} disabled={loading}>
+            🎲 Surprise me
+          </button>
+          <button type="button" className="action" onClick={wantToMake} disabled={loading}>
+            ★ Want to make
+          </button>
+        </div>
 
         <div className="filters">
           <MultiSelect
@@ -110,12 +264,68 @@ export default function Home() {
             selected={triedTags}
             onChange={setTriedTags}
           />
+          <button
+            type="button"
+            className="clear"
+            onClick={() => setShowMore((s) => !s)}
+          >
+            {showMore ? "Fewer filters" : "More filters"}
+          </button>
           {hasFilters && (
             <button type="button" className="clear" onClick={clearFilters}>
               Clear filters
             </button>
           )}
         </div>
+
+        {showMore && (
+          <div className="filters filters-more">
+            <MultiSelect
+              label="Any book"
+              options={meta?.books ?? []}
+              selected={books}
+              onChange={setBooks}
+            />
+            <MultiSelect
+              label="Any author"
+              options={meta?.authors ?? []}
+              selected={authors}
+              onChange={setAuthors}
+            />
+            <MultiSelect
+              label="Exclude ingredient"
+              options={INGREDIENTS.filter(
+                (i) => i !== "I don't know" && i !== "N/A" && i !== "Other",
+              )}
+              selected={excludeIngredients}
+              onChange={setExcludeIngredients}
+            />
+            {cuisineAvailable && (
+              <MultiSelect
+                label="Any cuisine"
+                options={meta?.cuisines ?? []}
+                selected={cuisines}
+                onChange={setCuisines}
+              />
+            )}
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={untriedOnly}
+                onChange={(e) => setUntriedOnly(e.target.checked)}
+              />
+              Not tried yet
+            </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={hasLink}
+                onChange={(e) => setHasLink(e.target.checked)}
+              />
+              Has a link
+            </label>
+          </div>
+        )}
       </header>
 
       <main>
@@ -128,15 +338,34 @@ export default function Home() {
 
         {error && <div className="error">{error}</div>}
 
+        {!loading && menu && (
+          <>
+            {menu.note && <div className="note">{menu.note}</div>}
+            {menu.menu.length > 0 && (
+              <div className="status">Your menu</div>
+            )}
+            <div className="results">
+              {menu.menu.map((c, i) => (
+                <div className="menu-course" key={`${c.recipe.id}-${i}`}>
+                  <div className="course-label">{c.course}</div>
+                  <RecipeCard
+                    result={{ recipe: c.recipe, reason: c.reason }}
+                    canEdit={canEdit}
+                    onSimilar={moreLikeThis}
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         {!loading && data && (
           <>
             <div className="status">
               {data.results.length > 0
                 ? `${data.results.length} match${
                     data.results.length === 1 ? "" : "es"
-                  } from ${data.totalRecipes.toLocaleString()} recipes${
-                    data.aiPowered ? "" : " (keyword search)"
-                  }`
+                  } from ${data.totalRecipes.toLocaleString()} recipes`
                 : ""}
             </div>
 
@@ -149,54 +378,28 @@ export default function Home() {
             )}
 
             <div className="results">
-              {data.results.map(({ recipe, reason }) => (
-                <article className="card" key={recipe.id}>
-                  <h3>
-                    {recipe.link ? (
-                      <a href={recipe.link} target="_blank" rel="noreferrer">
-                        {recipe.name}
-                      </a>
-                    ) : (
-                      recipe.name
-                    )}
-                  </h3>
-                  <div className="meta">
-                    <span className="book">{recipe.book}</span>
-                    {recipe.author && <> · {recipe.author}</>}
-                    {recipe.chapter && <> · {recipe.chapter}</>}
-                  </div>
-                  {reason && <div className="reason">{reason}</div>}
-                  <div className="tags">
-                    {recipe.category && (
-                      <span className="tag">{recipe.category}</span>
-                    )}
-                    {recipe.ingredients.map((i) => (
-                      <span className="tag" key={i}>
-                        {i}
-                      </span>
-                    ))}
-                    {recipe.page && (
-                      <span className="tag tag-page">p. {recipe.page}</span>
-                    )}
-                    {recipe.triedTag && (
-                      <span className="tag tag-tried">{recipe.triedTag}</span>
-                    )}
-                  </div>
-                </article>
+              {data.results.map((result) => (
+                <RecipeCard
+                  key={result.recipe.id}
+                  result={result}
+                  canEdit={canEdit}
+                  onSimilar={moreLikeThis}
+                />
               ))}
             </div>
           </>
         )}
 
-        {!loading && !data && !error && !searched && (
+        {!loading && !data && !menu && !error && !searched && (
           <div className="empty">
-            Search above, or use the filters, to get started.
+            Search above, plan a menu, or use the filters to get started.
           </div>
         )}
       </main>
 
       <footer className="foot">
-        Searches your live Google Sheet · powered by Claude
+        {meta ? `${meta.totalRecipes.toLocaleString()} recipes · ` : ""}
+        powered by Claude
         <br />
         <button type="button" className="logout" onClick={logout}>
           Log out

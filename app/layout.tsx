@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -13,11 +13,26 @@ export const metadata: Metadata = {
   title: "Linda's Cookbook Collection Search",
   description:
     "Search Linda's cookbook collection in plain English — find recipes by dish, ingredient, cuisine, or mood.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Cookbook",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1b1f1d",
+  width: "device-width",
+  initialScale: 1,
 };
 
 // Render dynamically so the per-request CSP nonce (set in middleware) is applied
-// to script tags. Static prerendering would bake in HTML without the nonce,
-// causing the browser to block the page's scripts.
+// to script tags. Static prerendering would bake in HTML without the nonce.
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({

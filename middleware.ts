@@ -91,6 +91,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next's static assets and the favicon.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Run on everything except Next's static assets and public files (icons,
+  // manifest) — those must stay reachable for the PWA without a session.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|icon-192.png|icon-512.png|apple-touch-icon.png|manifest.webmanifest|robots.txt).*)",
+  ],
 };

@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRecipes } from "@/lib/data";
-import { search } from "@/lib/search";
-import { guard, parseFilters, readJson, clampStr } from "@/lib/api";
+import { similar } from "@/lib/search";
+import { guard, readJson } from "@/lib/api";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_QUERY_LEN = 300;
-
 export async function POST(req: NextRequest) {
-  const blocked = guard(req, "search", 30, 60 * 1000);
+  const blocked = guard(req, "similar", 60, 60 * 1000);
   if (blocked) return blocked;
 
   const body = await readJson(req);
   if (!body) return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
 
-  const query = clampStr(body.query, MAX_QUERY_LEN);
-  const filters = parseFilters(body.filters);
+  const id = Number(body.id);
+  if (!Number.isInteger(id) || id < 0) {
+    return NextResponse.json({ error: "Invalid recipe id." }, { status: 400 });
+  }
 
   try {
-    const recipes = await getRecipes(body.refresh === true);
-    return NextResponse.json(await search(recipes, query, filters));
+    const recipes = await getRecipes();
+    return NextResponse.json({
+      results: similar(recipes, id),
+      totalRecipes: recipes.length,
+    });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Something went wrong loading the catalogue.";
