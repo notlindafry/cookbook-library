@@ -193,6 +193,7 @@ const BLOCKED = new Set([
   "goodreads.com",
   "barnesandnoble.com",
   "wikipedia.org",
+  "eatyourbooks.com", // a recipe index/catalogue, not the recipe itself
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -317,10 +318,11 @@ You are given a recipe name, its cookbook title and author, and a numbered list 
 1. It is a single, complete RECIPE PAGE for that same dish — a page that gives the ingredients and method. It is NOT a recipe roundup or collection, a category/index/landing page, a "cookbook club" or book-review/announcement page, a techniques/tips article, a news or blog post that merely mentions the book, or a store/product/book-sales page.
 2. The dish matches the given recipe name (the same dish, allowing for minor wording differences).
 3. It is tied to THIS source by EITHER the cookbook OR the author (either alone is sufficient): reproduced or excerpted from that book, the author's own posting of the recipe, or a page that attributes this dish to that book or to that author.
+4. It is the ORIGINAL recipe as published, NOT a modified version. Reject any page that presents the recipe as adapted, changed, or derived — e.g. wording like "adapted from", "based on", "inspired by", "riff on", "my take/version on", "loosely based", "slightly adapted", or any note that ingredients or method were changed. Only the faithful original qualifies.
 
 Treat accented characters, transliterations, and minor punctuation or spelling variations as equivalent (e.g. "crème" = "creme", "é" = "e", "Café" = "Cafe").
 
-Be strict on points 1 and 2: a generic recipe for the same dish with no connection to that book or author is NOT a match, and a page that is merely about the book but is not itself the recipe is NOT a match. When several qualify, prefer the most authoritative (the author or publisher over a third-party blog). If none clearly qualify, return -1.`;
+Be strict on points 1, 2 and 4: a generic recipe for the same dish with no connection to that book or author is NOT a match, a page that is merely about the book but is not itself the recipe is NOT a match, and an adaptation or modified version is NOT a match. When several qualify, prefer the most authoritative (the author or publisher over a third-party blog). If none clearly qualify, return -1.`;
 
 const VERIFY_SCHEMA = {
   type: "object",
