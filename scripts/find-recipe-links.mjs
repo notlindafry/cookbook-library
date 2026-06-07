@@ -307,11 +307,15 @@ function runSearch(query) {
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_KEY });
 
-const VERIFY_SYSTEM = `You verify whether a web page is the SAME recipe published in a SPECIFIC cookbook — not merely a generic or similar version of the dish.
+const VERIFY_SYSTEM = `You verify whether a web page is the actual recipe published in a SPECIFIC cookbook.
 
-You are given a recipe name, its cookbook title and author, and a numbered list of Google results (title, url, snippet). Return the index of the single result that is specifically THAT cookbook's recipe: e.g. the recipe reproduced or excerpted from that book, the author's own posting of it, or a page that explicitly attributes the recipe to that book or its author.
+You are given a recipe name, its cookbook title and author, and a numbered list of Google results (title, url, snippet). Return the index of the single result that satisfies ALL of these:
 
-Be strict. A recipe for the same dish from an unrelated source — with no clear connection to that book or that author — is NOT a match. When several qualify, prefer the most authoritative (the author or publisher over a third-party blog). If none clearly qualify, return -1.`;
+1. It is a single, complete RECIPE PAGE for that same dish — a page that gives the ingredients and method. It is NOT a recipe roundup or collection, a category/index/landing page, a "cookbook club" or book-review/announcement page, a techniques/tips article, a news or blog post that merely mentions the book, or a store/product/book-sales page.
+2. The dish matches the given recipe name (the same dish, allowing for minor wording differences).
+3. It is specifically THAT cookbook's version: reproduced or excerpted from that book, the author's own posting of it, or a page that explicitly attributes this exact recipe to that book or its author.
+
+Be strict. A generic recipe for the same dish with no connection to that book or author is NOT a match. A page that is about the book but is not itself the recipe is NOT a match. When several qualify, prefer the most authoritative (the author or publisher over a third-party blog). If none clearly qualify, return -1.`;
 
 const VERIFY_SCHEMA = {
   type: "object",
