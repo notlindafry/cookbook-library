@@ -216,12 +216,12 @@ export default function Home() {
     <div className="wrap">
       <header className="hero">
         <h1>Linda&apos;s Cookbook Collection Search</h1>
-        <p>Search your cookbook collection in plain English.</p>
+        <p>Search Linda&apos;s cookbook collection in plain English.</p>
 
         <form className="search" onSubmit={onSubmit}>
           <input
             type="text"
-            placeholder="e.g. a cozy soup with chicken and pasta"
+            placeholder="e.g. a cozy soup with chicken and pasta, or 4 course Persian dinner with eggplant"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search recipes"
