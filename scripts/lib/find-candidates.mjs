@@ -7,7 +7,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { allowedSearchDomains } from "./trusted-sites.mjs";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// The finder can use its own model (web search benefits from a strong one)
+// without disturbing the app's cost-tuned ANTHROPIC_MODEL for normal search.
+const MODEL =
+  process.env.RECIPE_FINDER_MODEL || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 const MAX_SEARCHES = 5;
 
 const SYSTEM = `You locate the online version of ONE specific cookbook recipe for a personal recipe index.

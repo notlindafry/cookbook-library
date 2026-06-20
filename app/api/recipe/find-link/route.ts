@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRecipes, getSheetMeta, invalidateCache } from "@/lib/data";
 import { writeEnabled, updateRecipeCell } from "@/lib/sheets";
 import { aiAvailable } from "@/lib/search";
-import { guard, readJson, serverError } from "@/lib/api";
+import { guard, readJson } from "@/lib/api";
 import { findBestLink } from "@/scripts/lib/find-link.mjs";
 
 export const runtime = "nodejs";
@@ -82,14 +82,38 @@ export async function POST(req: NextRequest) {
     if (err instanceof Error && err.message.startsWith("Safety check failed")) {
       return NextResponse.json({ error: err.message }, { status: 409 });
     }
-    // Surface a likely-misconfiguration (bad key / web search not enabled) clearly.
-    const status = (err as { status?: number })?.status;
-    if (status === 401 || status === 403) {
+    console.error("find-link error:", err);
+    // This route talks to the owner's own Anthropic account behind a login gate,
+    // so surfacing a trimmed error (no secrets in these messages) is far more
+    // useful than an opaque 500 when diagnosing setup issues like web search.
+    const { status, message } = describeError(err);
+    const webSearchIssue = /web[\s_-]?search|server[\s_-]?tool|tool .*(unavailable|not)/i.test(
+      message,
+    );
+    if (status === 401 || status === 403 || webSearchIssue) {
       return NextResponse.json(
-        { error: "Link search is unavailable. Check the API key and that web search is enabled." },
+        {
+          error:
+            "Link search is unavailable — likely the Anthropic API key doesn't have web search enabled. " +
+            `(${status ?? "error"}: ${message})`,
+        },
         { status: 502 },
       );
     }
-    return serverError(err, "Could not find a link for this recipe.");
+    return NextResponse.json(
+      { error: `Could not find a link for this recipe. (${status ?? "error"}: ${message})` },
+      { status: 500 },
+    );
   }
+}
+
+/** Pull a safe status + short message out of an unknown (often SDK) error. */
+function describeError(err: unknown): { status: number | null; message: string } {
+  const status =
+    typeof (err as { status?: unknown })?.status === "number"
+      ? (err as { status: number }).status
+      : null;
+  const nested = (err as { error?: { error?: { message?: string } } })?.error?.error?.message;
+  const raw = nested || (err instanceof Error ? err.message : String(err));
+  return { status, message: raw.slice(0, 300) };
 }
