@@ -29,6 +29,16 @@ on:
         options:
           - reputable
           - any
+      model:
+        description: "Finder model (cost vs. quality). 'default' uses your configured model."
+        type: choice
+        required: false
+        default: default
+        options:
+          - default
+          - claude-haiku-4-5
+          - claude-sonnet-4-6
+          - claude-opus-4-8
 
 # Don't let two runs write the sheet at the same time.
 concurrency:
@@ -57,7 +67,8 @@ jobs:
           SHEET_TAB_NAME: ${{ secrets.SHEET_TAB_NAME }}
           # Optional.
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
-          RECIPE_FINDER_MODEL: ${{ secrets.RECIPE_FINDER_MODEL }}
+          # The model dropdown overrides the secret; 'default' falls back to it.
+          RECIPE_FINDER_MODEL: ${{ inputs.model != 'default' && inputs.model || secrets.RECIPE_FINDER_MODEL }}
           RECIPE_URL_COLUMN: ${{ secrets.RECIPE_URL_COLUMN }}
           RECIPE_LINK_ACCEPT: ${{ inputs.accept }}
           # Inputs are passed via env (never interpolated into the command) to
