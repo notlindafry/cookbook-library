@@ -32,9 +32,20 @@ import {
   columnLetter,
 } from "./lib/sheets.mjs";
 import { findBestLink } from "./lib/find-link.mjs";
+import { finderModel } from "./lib/find-candidates.mjs";
 
 const DEFAULT_LIMIT = 100; // cost guardrail; raise with --limit (0 = no cap)
 const CONCURRENCY = 3;
+
+// Published per-MTok token prices and the web-search rate, for cost estimation.
+const PRICES = {
+  "claude-opus-4-8": { in: 5, out: 25 },
+  "claude-opus-4-7": { in: 5, out: 25 },
+  "claude-opus-4-6": { in: 5, out: 25 },
+  "claude-sonnet-4-6": { in: 3, out: 15 },
+  "claude-haiku-4-5": { in: 1, out: 5 },
+};
+const WEB_SEARCH_PER_1K = 10; // USD per 1,000 web searches
 const CHUNK = 25; // flush matches to the sheet every N recipes (durable progress)
 
 function parseArgs(argv) {
@@ -189,6 +200,7 @@ async function main() {
   if (!args.dryRun && createHeaderAs) await writeHeaderCell(targetCol, createHeaderAs);
 
   const summary = { matched: 0, no_match: 0, no_candidates: 0, error: 0 };
+  const usage = { input: 0, output: 0, searches: 0, counted: 0 };
   let written = 0;
   let skipped = 0;
 
@@ -204,6 +216,12 @@ async function main() {
       async ({ rowNumber, recipe }) => {
         const res = await processRecipe(recipe);
         summary[res.status] = (summary[res.status] || 0) + 1;
+        if (res.usage) {
+          usage.input += res.usage.input;
+          usage.output += res.usage.output;
+          usage.searches += res.usage.searches;
+          usage.counted += 1;
+        }
         if (res.status === "matched") {
           chunkUpdates.push({ row: rowNumber, value: res.url, name: recipe.name });
           console.log(`✓ row ${rowNumber}  ${recipe.name} → ${res.url}`);
@@ -230,6 +248,7 @@ async function main() {
     `\nResults: ${summary.matched} matched, ${summary.no_match} no-match, ` +
       `${summary.no_candidates} no-candidates, ${summary.error} error.`,
   );
+  reportCost(usage, eligible, finderModel());
   if (args.dryRun) {
     console.log(`Dry run — no changes written (${summary.matched} would have been).`);
     return;
@@ -237,6 +256,32 @@ async function main() {
   console.log(
     `Wrote ${written} URL(s) to column ${columnLetter(targetCol)}.` +
       (skipped ? ` Skipped ${skipped} (changed since read).` : ""),
+  );
+}
+
+/** Print a measured cost breakdown for this run and project it to all eligible rows. */
+function reportCost(usage, eligible, model) {
+  if (usage.counted === 0) return;
+  const price = PRICES[model] || PRICES["claude-sonnet-4-6"];
+  const inCost = (usage.input / 1e6) * price.in;
+  const outCost = (usage.output / 1e6) * price.out;
+  const searchCost = (usage.searches / 1000) * WEB_SEARCH_PER_1K;
+  const runCost = inCost + outCost + searchCost;
+  const perRecipe = runCost / usage.counted;
+
+  console.log(`\nCost (measured over ${usage.counted} recipe(s), model ${model}):`);
+  console.log(`  web searches: ${usage.searches}  ($${searchCost.toFixed(2)})`);
+  console.log(`  input tokens:  ${usage.input.toLocaleString()}  ($${inCost.toFixed(2)})`);
+  console.log(`  output tokens: ${usage.output.toLocaleString()}  ($${outCost.toFixed(2)})`);
+  console.log(`  this run: $${runCost.toFixed(2)}  ·  ~$${perRecipe.toFixed(3)}/recipe`);
+  console.log(
+    `  → projected for all ${eligible} un-linked recipe(s): ~$${(perRecipe * eligible).toFixed(2)}`,
+  );
+  if (!PRICES[model]) {
+    console.log(`  (unrecognized model — priced as claude-sonnet-4-6; adjust if needed)`);
+  }
+  console.log(
+    `  basis: web search $${WEB_SEARCH_PER_1K}/1k searches; tokens $${price.in}/$${price.out} per MTok in/out.`,
   );
 }
 

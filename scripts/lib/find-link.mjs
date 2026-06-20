@@ -19,11 +19,12 @@ const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
  * @param {{name:string, book:string, author:string}} recipe
- * @returns {Promise<{status:"matched"|"no_match"|"no_candidates", url?:string, score?:number}>}
+ * @returns {Promise<{status:"matched"|"no_match"|"no_candidates", url?:string,
+ *          score?:number, usage:{input:number,output:number,searches:number}}>}
  *          Throws if the search call itself fails (caller decides how to handle).
  */
 export async function findBestLink(recipe) {
-  const candidates = await findCandidates(recipe);
+  const { candidates, usage } = await findCandidates(recipe);
 
   // De-dup and cap how many we'll actually fetch/validate.
   const seen = new Set();
@@ -55,7 +56,7 @@ export async function findBestLink(recipe) {
 
   const best = pickBest(finalists);
   if (!best) {
-    return { status: candidates?.length ? "no_match" : "no_candidates" };
+    return { status: candidates?.length ? "no_match" : "no_candidates", usage };
   }
-  return { status: "matched", url: best.url, score: best.score };
+  return { status: "matched", url: best.url, score: best.score, usage };
 }

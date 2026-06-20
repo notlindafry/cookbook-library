@@ -12,6 +12,11 @@ const MODEL =
   process.env.RECIPE_FINDER_MODEL || process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 const MAX_SEARCHES = 5;
 
+/** The model the finder is using (for cost reporting). */
+export function finderModel() {
+  return MODEL;
+}
+
 const SYSTEM = `You locate the online version of ONE specific cookbook recipe for a personal recipe index.
 
 You are given a recipe NAME plus the BOOK title and AUTHOR it comes from. Find web pages that publish THAT SAME recipe — the one from that specific book/author. Cookbook recipes get republished widely: the publisher, the author's own website, magazines, newspapers, public media (e.g. PBS, NPR), and well-known cooking sites and blogs. Do NOT return a different recipe that merely shares the name (e.g. a random "chicken noodle soup" when the user wants the one from a particular book).
@@ -92,10 +97,19 @@ function extractCandidates(res) {
   return urlsFromSearchResults(res.content);
 }
 
+/** Token + web-search usage for one call, for cost estimation. */
+function readUsage(res) {
+  const u = res.usage || {};
+  return {
+    input: u.input_tokens || 0,
+    output: u.output_tokens || 0,
+    searches: u.server_tool_use?.web_search_requests || 0,
+  };
+}
+
 /**
  * @param {{name:string, book:string, author:string}} recipe
- * @returns {Promise<Array<{url:string, matchesName:boolean, matchesBook:boolean,
- *   matchesAuthor:boolean, looksPaywalled:boolean, note?:string}>>}
+ * @returns {Promise<{candidates:Array<object>, usage:{input:number,output:number,searches:number}}>}
  */
 export async function findCandidates(recipe) {
   const api = getClient();
@@ -126,5 +140,5 @@ export async function findCandidates(recipe) {
       },
     ],
   });
-  return extractCandidates(res);
+  return { candidates: extractCandidates(res), usage: readUsage(res) };
 }
