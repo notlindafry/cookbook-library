@@ -2,15 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  isTrustedDomain,
+  isReputableDomain,
   isAllowedPaywall,
   reputationTier,
-  allowedSearchDomains,
   TIER,
 } from "./trusted-sites.mjs";
 import {
   parseHttpsUrl,
-  isFetchableTrustedUrl,
+  isFetchableUrl,
   sanitizeUrlForSheet,
   isPrivateHost,
 } from "./url-safety.mjs";
@@ -22,16 +21,17 @@ import {
   pickBest,
 } from "./matching.mjs";
 
-// --- trusted-sites -------------------------------------------------------
+// --- trusted-sites (reputation map) --------------------------------------
 
-test("allowlist matches sites and sub-domains, rejects everything else", () => {
-  assert.equal(isTrustedDomain("epicurious.com"), true);
-  assert.equal(isTrustedDomain("www.epicurious.com"), true);
-  assert.equal(isTrustedDomain("cooking.nytimes.com"), true);
-  assert.equal(isTrustedDomain("evil.com"), false);
+test("reputable map matches sites and sub-domains, rejects everything else", () => {
+  assert.equal(isReputableDomain("epicurious.com"), true);
+  assert.equal(isReputableDomain("www.epicurious.com"), true);
+  assert.equal(isReputableDomain("cooking.nytimes.com"), true);
+  assert.equal(isReputableDomain("pbs.org"), true); // newly added
+  assert.equal(isReputableDomain("evil.com"), false);
   // suffix look-alike must not pass
-  assert.equal(isTrustedDomain("notepicurious.com"), false);
-  assert.equal(isTrustedDomain("epicurious.com.evil.com"), false);
+  assert.equal(isReputableDomain("notepicurious.com"), false);
+  assert.equal(isReputableDomain("epicurious.com.evil.com"), false);
 });
 
 test("only subscribed sites count as allowed paywalls", () => {
@@ -43,15 +43,12 @@ test("only subscribed sites count as allowed paywalls", () => {
   assert.equal(isAllowedPaywall("foodnetwork.com"), false);
 });
 
-test("reputation tiers and search domains", () => {
+test("reputation tiers", () => {
   assert.equal(reputationTier("cooking.nytimes.com"), TIER.TOP);
+  assert.equal(reputationTier("pbs.org"), TIER.STRONG);
+  assert.equal(reputationTier("saltfatacidheat.com"), TIER.GOOD);
   assert.equal(reputationTier("budgetbytes.com"), TIER.GOOD);
   assert.equal(reputationTier("evil.com"), 0);
-  // food52 is crawlable and searchable; epicurious is trusted but blocks the
-  // web-search crawler, so it's excluded from the search list (still trusted).
-  assert.ok(allowedSearchDomains().includes("food52.com"));
-  assert.ok(!allowedSearchDomains().includes("epicurious.com"));
-  assert.equal(isTrustedDomain("epicurious.com"), true);
 });
 
 // --- url-safety ----------------------------------------------------------
@@ -68,18 +65,24 @@ test("parseHttpsUrl accepts only safe public https URLs", () => {
   assert.equal(parseHttpsUrl("https://localhost/x"), null); // private host
 });
 
-test("isFetchableTrustedUrl couples https-safety with the allowlist", () => {
-  assert.equal(isFetchableTrustedUrl("https://www.seriouseats.com/recipe"), true);
-  assert.equal(isFetchableTrustedUrl("https://evil.com/recipe"), false);
-  assert.equal(isFetchableTrustedUrl("http://www.seriouseats.com/recipe"), false);
+test("isFetchableUrl checks https-safety only (any public host)", () => {
+  assert.equal(isFetchableUrl("https://www.seriouseats.com/recipe"), true);
+  assert.equal(isFetchableUrl("https://some-random-blog.example/recipe"), true);
+  assert.equal(isFetchableUrl("http://www.seriouseats.com/recipe"), false); // not https
+  assert.equal(isFetchableUrl("https://127.0.0.1/x"), false); // private/IP
+  assert.equal(isFetchableUrl("https://localhost/x"), false);
 });
 
-test("sanitizeUrlForSheet returns a clean trusted URL or null", () => {
+test("sanitizeUrlForSheet returns a clean safe URL or null", () => {
   assert.equal(
     sanitizeUrlForSheet("https://food52.com/recipes/1-x#comments"),
     "https://food52.com/recipes/1-x",
   );
-  assert.equal(sanitizeUrlForSheet("https://evil.com/x"), null);
+  // safety-only: a non-reputable but safe https URL is allowed through here
+  // (reputation is enforced separately, when deciding what to write).
+  assert.equal(sanitizeUrlForSheet("https://some-blog.example/x"), "https://some-blog.example/x");
+  assert.equal(sanitizeUrlForSheet("http://food52.com/x"), null); // not https
+  assert.equal(sanitizeUrlForSheet("https://127.0.0.1/x"), null); // private
   assert.equal(sanitizeUrlForSheet("=HYPERLINK(1)"), null);
 });
 
@@ -118,19 +121,27 @@ test("softContains finds an author surname in a credit line", () => {
   assert.equal(softContains("A generic page", "Joe Smith"), false);
 });
 
-test("scoreCandidate requires name AND (book OR author)", () => {
+test("scoreCandidate: reputable-only write policy", () => {
   const base = { contentVerified: true, structuredRecipe: false };
+  const q = (host, sig, opts) => scoreCandidate(host, { ...base, ...sig }, opts).qualifies;
+
+  // Must always be a direct match (name AND book-or-author).
+  assert.equal(q("epicurious.com", { name: "exact", book: false, author: false }), false);
+  assert.equal(q("epicurious.com", { name: "none", book: true, author: true }), false);
+
+  // Reputable site + direct match → writes.
+  assert.equal(q("epicurious.com", { name: "exact", book: true, author: false }), true);
+  assert.equal(q("pbs.org", { name: "exact", book: false, author: true }), true);
+
+  // Unknown site: a weak (name+author only) match is skipped...
+  assert.equal(q("some-blog.example", { name: "exact", book: false, author: true }), false);
+  // ...but a strong name+book+author match qualifies anywhere.
+  assert.equal(q("some-blog.example", { name: "exact", book: true, author: true }), true);
+
+  // acceptAny loosens to any safe direct match.
   assert.equal(
-    scoreCandidate("epicurious.com", { name: "exact", book: true, author: false, ...base }).qualifies,
+    q("some-blog.example", { name: "exact", book: false, author: true }, { acceptAny: true }),
     true,
-  );
-  assert.equal(
-    scoreCandidate("epicurious.com", { name: "exact", book: false, author: false, ...base }).qualifies,
-    false,
-  );
-  assert.equal(
-    scoreCandidate("epicurious.com", { name: "none", book: true, author: true, ...base }).qualifies,
-    false,
   );
 });
 

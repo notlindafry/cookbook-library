@@ -22,13 +22,13 @@ function stubFetch(routes) {
 
 const RECIPE = { name: "Chicken Noodle Soup", book: "Soup Book", author: "Joe Smith" };
 
-test("rejects an untrusted host without fetching", async () => {
+test("rejects an unsafe (private/loopback) host without fetching", async () => {
   let called = false;
   global.fetch = async () => {
     called = true;
     return new Response("x", { status: 200 });
   };
-  const r = await validateUrl("https://evil.com/recipe", RECIPE);
+  const r = await validateUrl("https://127.0.0.1/recipe", RECIPE);
   assert.equal(r.accepted, false);
   assert.equal(r.classification, "unsafe");
   assert.equal(called, false);
@@ -96,14 +96,14 @@ test("accepts a real matching page and reads signals from content", async () => 
   assert.equal(r.signals.structuredRecipe, true);
 });
 
-test("does not follow a redirect off the allowlist", async () => {
+test("does not follow a redirect to a private/unsafe host (SSRF)", async () => {
   stubFetch([
     [
       "seriouseats.com",
       () =>
         new Response(null, {
           status: 301,
-          headers: { Location: "https://evil.com/takeover" },
+          headers: { Location: "https://169.254.169.254/latest/meta-data/" },
         }),
     ],
   ]);

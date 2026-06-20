@@ -64,12 +64,20 @@ export function softContains(haystack, needle) {
  *   contentVerified: we read real page text (vs. a paywalled/blocked body)
  *   structuredRecipe: the page exposed a Recipe (JSON-LD) schema
  *
- * Returns { score, qualifies }. `qualifies` enforces the user's rule: a match
- * needs the recipe name AND (the book name OR the author name).
+ * `opts.acceptAny` — if true, any safe direct match qualifies (max coverage).
+ *
+ * Returns { score, qualifies, ... }. A match must always be a DIRECT match
+ * (recipe name AND book-or-author). In the default "reputable-only" policy it
+ * additionally must be on a recognized reputable site OR match name+book+author
+ * strongly (high confidence on any site).
  */
-export function scoreCandidate(hostname, signals) {
+export function scoreCandidate(hostname, signals, opts = {}) {
+  const directMatch = signals.name !== "none" && (signals.book || signals.author);
+  const reputation = reputationTier(hostname);
+  const reputable = reputation > 0;
+  const strong = signals.name !== "none" && signals.book && signals.author;
   const qualifies =
-    signals.name !== "none" && (signals.book || signals.author);
+    directMatch && (opts.acceptAny === true || reputable || strong);
 
   let signalScore = 0;
   signalScore += signals.name === "exact" ? 3 : signals.name === "fuzzy" ? 2 : 0;
@@ -78,7 +86,6 @@ export function scoreCandidate(hostname, signals) {
   if (signals.contentVerified) signalScore += 1;
   if (signals.structuredRecipe) signalScore += 1;
 
-  const reputation = reputationTier(hostname);
   // Weight matching signals above reputation, but let reputation pull a strong
   // match ahead of an equally-strong one — "most reputable with the highest
   // matching signals".

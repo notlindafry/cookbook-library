@@ -10,6 +10,11 @@ import { sanitizeUrlForSheet } from "./url-safety.mjs";
 
 const MAX_CANDIDATES_PER_RECIPE = 6;
 
+// Write policy: "reputable" (default) only auto-fills matches on a recognized
+// reputable site or with a strong name+book+author match; "any" writes any safe
+// direct match (max coverage). Set RECIPE_LINK_ACCEPT=any to loosen.
+const ACCEPT_ANY = process.env.RECIPE_LINK_ACCEPT === "any";
+
 const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
@@ -43,7 +48,7 @@ export async function findBestLink(recipe) {
     const safe = sanitizeUrlForSheet(v.finalUrl || c.url);
     if (!safe) continue;
     const host = new URL(safe).hostname;
-    const s = scoreCandidate(host, v.signals);
+    const s = scoreCandidate(host, v.signals, { acceptAny: ACCEPT_ANY });
     if (!s.qualifies) continue;
     finalists.push({ url: safe, ...s });
   }

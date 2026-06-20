@@ -2,8 +2,8 @@
 // allowed to be fetched or written to the sheet lives here so it can be unit
 // tested in isolation. These checks run BEFORE any network request and again
 // before any write — a candidate has to clear them no matter where it came from.
-
-import { isTrustedDomain } from "./trusted-sites.mjs";
+// Note: these enforce *safety* (https, public host, no injection), not site
+// reputation — reputation is a separate, ranking/precision concern.
 
 const MAX_URL_LEN = 2048;
 
@@ -56,26 +56,24 @@ export function parseHttpsUrl(raw) {
 }
 
 /**
- * A URL is safe to fetch when it parses as a public https URL AND its host is on
- * the trusted allowlist. Used for the initial candidate and re-checked for every
- * redirect hop so a trusted page can't bounce us off-allowlist.
+ * A URL is safe to fetch when it parses as a public https URL. Used for the
+ * initial candidate and re-checked for every redirect hop, so a page can never
+ * bounce us to a private/loopback host (SSRF). Site reputation is NOT checked
+ * here — that's decided later, after the page is validated.
  */
-export function isFetchableTrustedUrl(raw) {
-  const url = parseHttpsUrl(raw);
-  if (!url) return false;
-  return isTrustedDomain(url.hostname);
+export function isFetchableUrl(raw) {
+  return parseHttpsUrl(raw) !== null;
 }
 
 /**
  * Final gate before a value is written to the sheet. Returns a clean canonical
- * https URL string, or null if it is anything other than a trusted https URL.
- * Guards against CSV/formula injection (a URL can never begin with = + - @) and
- * strips any fragment so we never persist junk.
+ * https URL string, or null if it isn't a safe public https URL. Guards against
+ * CSV/formula injection (a stored URL can never begin with = + - @) and strips
+ * any fragment so we never persist junk.
  */
 export function sanitizeUrlForSheet(raw) {
   const url = parseHttpsUrl(raw);
   if (!url) return null;
-  if (!isTrustedDomain(url.hostname)) return null;
   url.hash = "";
   const out = url.toString();
   if (/^[=+\-@\t\r]/.test(out)) return null; // never store something a sheet might evaluate

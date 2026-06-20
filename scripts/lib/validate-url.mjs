@@ -4,7 +4,7 @@
 // paywall (except on the user's subscribed sites) — and extract our own match
 // signals from the actual content. This is the gate that protects the sheet.
 
-import { parseHttpsUrl, isFetchableTrustedUrl } from "./url-safety.mjs";
+import { parseHttpsUrl, isFetchableUrl } from "./url-safety.mjs";
 import { isAllowedPaywall } from "./trusted-sites.mjs";
 import { nameMatchStrength, softContains } from "./matching.mjs";
 
@@ -53,15 +53,16 @@ async function readCappedText(res) {
 }
 
 /**
- * Fetch with SSRF/redirect guards: every hop must re-clear the trusted-host
- * check, redirects are capped, the body is size-capped, and the whole thing is
- * time-bounded. Returns { status, finalUrl, body } or throws on a network error.
+ * Fetch with SSRF/redirect guards: every hop must re-clear the safe-https check
+ * (so a page can't redirect us to a private/loopback host), redirects are
+ * capped, the body is size-capped, and the whole thing is time-bounded.
+ * Returns { status, finalUrl, body } or throws on a network error.
  */
 async function safeFetch(startUrl) {
   let current = startUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    if (!isFetchableTrustedUrl(current)) {
-      return { status: 0, finalUrl: current, body: "", offAllowlist: true };
+    if (!isFetchableUrl(current)) {
+      return { status: 0, finalUrl: current, body: "", unsafeRedirect: true };
     }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -164,8 +165,8 @@ function hasMarker(text, markers) {
  */
 export async function validateUrl(rawUrl, recipe, reported = {}) {
   const url = parseHttpsUrl(rawUrl);
-  if (!url || !isFetchableTrustedUrl(rawUrl)) {
-    return reject("unsafe", null, "not a trusted https URL");
+  if (!url) {
+    return reject("unsafe", null, "not a safe https URL");
   }
 
   let result;
@@ -176,8 +177,8 @@ export async function validateUrl(rawUrl, recipe, reported = {}) {
     return reject("error", null, why);
   }
 
-  const { status, finalUrl, body, offAllowlist } = result;
-  if (offAllowlist) return reject("unsafe", finalUrl, "redirected off allowlist");
+  const { status, finalUrl, body, unsafeRedirect } = result;
+  if (unsafeRedirect) return reject("unsafe", finalUrl, "redirected to an unsafe host");
 
   const host = (() => {
     try { return new URL(finalUrl).hostname; } catch { return url.hostname; }

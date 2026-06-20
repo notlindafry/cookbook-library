@@ -1,16 +1,17 @@
-// Curated allowlist of reputable recipe sources. This list is the backbone of
-// the feature's security model AND its quality model:
+// Reputation map of recognized recipe sources. This is no longer a hard search
+// gate — the finder searches the whole web and validates each candidate for
+// safety in code. This list serves two remaining jobs:
 //
-//  * Security — it is a default-deny allowlist. We only ever search these
-//    domains (passed to Claude's web_search as `allowed_domains`) and we only
-//    ever accept/validate/write a URL whose host is on this list. A page from
-//    anywhere else is rejected before it is ever fetched, which keeps us away
-//    from parked domains, link farms, and malware-hosting look-alikes.
-//  * Quality — each site carries a reputation tier used to break ties when more
-//    than one trusted site has the same recipe ("the most reputable website").
+//  * Quality / precision — in "reputable-only" write mode, a match auto-fills
+//    only when it's on a recognized reputable site here OR it matches the recipe
+//    name AND book AND author strongly. Tiers also break ties ("most reputable").
+//  * Paywall policy — see ALLOWED_PAYWALL_DOMAINS.
 //
-// Keep this list conservative. Adding a domain grants it trust; only add
-// established, editorially-run culinary publishers and well-known recipe sites.
+// It does NOT need to be exhaustive: a strong name+book+author match on an
+// unlisted site still qualifies, and every candidate (listed or not) must pass
+// the same safety validation (https-only, reachable, not a 404/placeholder, no
+// SSRF) before it can be written. Add a domain to prefer it and to let weaker
+// (e.g. name+author only) matches on it auto-fill.
 
 /** Reputation tiers (higher = preferred when breaking ties between matches). */
 export const TIER = { TOP: 3, STRONG: 2, GOOD: 1 };
@@ -22,6 +23,7 @@ export const TIER = { TOP: 3, STRONG: 2, GOOD: 1 };
 export const TRUSTED_SITES = new Map([
   // --- Tier: TOP (editorially rigorous; includes the user's paid subscriptions) ---
   ["cooking.nytimes.com", { name: "NYT Cooking", tier: TIER.TOP }],
+  ["nytimes.com", { name: "The New York Times", tier: TIER.TOP }],
   ["epicurious.com", { name: "Epicurious", tier: TIER.TOP }],
   ["americastestkitchen.com", { name: "America's Test Kitchen", tier: TIER.TOP }],
   ["cooksillustrated.com", { name: "Cook's Illustrated", tier: TIER.TOP }],
@@ -33,7 +35,7 @@ export const TRUSTED_SITES = new Map([
   ["smittenkitchen.com", { name: "Smitten Kitchen", tier: TIER.TOP }],
   ["thekitchn.com", { name: "The Kitchn", tier: TIER.TOP }],
 
-  // --- Tier: STRONG (large, reputable, professionally edited) ---
+  // --- Tier: STRONG (large, reputable, professionally edited media) ---
   ["foodnetwork.com", { name: "Food Network", tier: TIER.STRONG }],
   ["foodandwine.com", { name: "Food & Wine", tier: TIER.STRONG }],
   ["simplyrecipes.com", { name: "Simply Recipes", tier: TIER.STRONG }],
@@ -46,8 +48,18 @@ export const TRUSTED_SITES = new Map([
   ["delish.com", { name: "Delish", tier: TIER.STRONG }],
   ["tasteofhome.com", { name: "Taste of Home", tier: TIER.STRONG }],
   ["food.com", { name: "Food.com", tier: TIER.STRONG }],
+  ["thespruceeats.com", { name: "The Spruce Eats", tier: TIER.STRONG }],
+  ["pbs.org", { name: "PBS", tier: TIER.STRONG }],
+  ["npr.org", { name: "NPR", tier: TIER.STRONG }],
+  ["washingtonpost.com", { name: "The Washington Post", tier: TIER.STRONG }],
+  ["latimes.com", { name: "Los Angeles Times", tier: TIER.STRONG }],
+  ["theguardian.com", { name: "The Guardian", tier: TIER.STRONG }],
+  ["bbc.co.uk", { name: "BBC", tier: TIER.STRONG }],
+  ["wsj.com", { name: "The Wall Street Journal", tier: TIER.STRONG }],
 
-  // --- Tier: GOOD (well-known author/publisher sites that republish cookbooks) ---
+  // --- Tier: GOOD (well-known author/publisher sites & established food blogs) ---
+  ["saltfatacidheat.com", { name: "Salt Fat Acid Heat (Samin Nosrat)", tier: TIER.GOOD }],
+  ["michaelpollan.com", { name: "Michael Pollan", tier: TIER.GOOD }],
   ["ottolenghi.co.uk", { name: "Ottolenghi", tier: TIER.GOOD }],
   ["davidlebovitz.com", { name: "David Lebovitz", tier: TIER.GOOD }],
   ["101cookbooks.com", { name: "101 Cookbooks", tier: TIER.GOOD }],
@@ -58,6 +70,10 @@ export const TRUSTED_SITES = new Map([
   ["onceuponachef.com", { name: "Once Upon a Chef", tier: TIER.GOOD }],
   ["sallysbakingaddiction.com", { name: "Sally's Baking Addiction", tier: TIER.GOOD }],
   ["halfbakedharvest.com", { name: "Half Baked Harvest", tier: TIER.GOOD }],
+  ["pinchofyum.com", { name: "Pinch of Yum", tier: TIER.GOOD }],
+  ["gimmesomeoven.com", { name: "Gimme Some Oven", tier: TIER.GOOD }],
+  ["ambitiouskitchen.com", { name: "Ambitious Kitchen", tier: TIER.GOOD }],
+  ["thepioneerwoman.com", { name: "The Pioneer Woman", tier: TIER.GOOD }],
 ]);
 
 /**
@@ -74,26 +90,6 @@ export const ALLOWED_PAYWALL_DOMAINS = new Set([
   "cookscountry.com",
 ]);
 
-/**
- * Trusted sites whose own bot policy blocks Anthropic's web_search crawler.
- * The web_search tool 400s if any of these is in `allowed_domains`, so we keep
- * them OUT of search — but they stay TRUSTED for validation (a URL we already
- * hold is still fine to write). The finder also prunes any others the API
- * reports at runtime, so this is an optimization, not the only safeguard.
- */
-export const SEARCH_BLOCKED_DOMAINS = new Set([
-  "epicurious.com",
-  "seriouseats.com",
-  "bonappetit.com",
-  "simplyrecipes.com",
-  "foodandwine.com",
-  "eatingwell.com",
-  "marthastewart.com",
-  "allrecipes.com",
-  "bbcgoodfood.com",
-  "delish.com",
-]);
-
 function normalizeHost(hostname) {
   return String(hostname || "").trim().toLowerCase().replace(/\.$/, "");
 }
@@ -104,7 +100,7 @@ function hostMatchesDomain(hostname, domain) {
   return h === domain || h.endsWith(`.${domain}`);
 }
 
-/** The matching trusted-site entry for a hostname, or null. */
+/** The matching reputable-site entry for a hostname, or null. */
 export function trustedSiteFor(hostname) {
   const h = normalizeHost(hostname);
   if (!h) return null;
@@ -114,7 +110,8 @@ export function trustedSiteFor(hostname) {
   return null;
 }
 
-export function isTrustedDomain(hostname) {
+/** True when the host is a recognized reputable source. */
+export function isReputableDomain(hostname) {
   return trustedSiteFor(hostname) !== null;
 }
 
@@ -128,12 +125,4 @@ export function isAllowedPaywall(hostname) {
     if (hostMatchesDomain(h, domain)) return true;
   }
   return false;
-}
-
-/**
- * The plain domain list handed to Claude's web_search `allowed_domains`.
- * Excludes sites that block Anthropic's crawler (they'd cause a 400).
- */
-export function allowedSearchDomains() {
-  return [...TRUSTED_SITES.keys()].filter((d) => !SEARCH_BLOCKED_DOMAINS.has(d));
 }

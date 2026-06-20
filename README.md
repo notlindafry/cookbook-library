@@ -39,9 +39,9 @@ If no API key is configured, the app gracefully falls back to keyword search.
 - **Password-protected** with rate limiting, CSRF protection, and hardened headers.
 - **Optional write-back** — set a verdict or prep note from the app (see below).
 - **Find online recipe links** — click **🔗 Find link** on any result, or run
-  `npm run find-urls` to batch-fill the whole catalogue. Both scan a curated allowlist
-  of reputable recipe sites for the recipe's online version and write it to the **Recipe
-  link** column (see below).
+  `npm run find-urls` to batch-fill the whole catalogue. Both search the web for the
+  recipe's online version, validate it, and write it to the **Recipe link** column,
+  preferring reputable sources (see below).
 
 ---
 
@@ -200,24 +200,30 @@ npm run find-urls -- --book "Soup Book" --limit 0
 ```
 
 **How it finds a _direct_ match (not just any same-named recipe).** For each recipe it
-asks Claude to search **only a curated allowlist of reputable recipe sites** for a page
-that matches the **recipe name _and_ the book title**, and/or the **recipe name _and_
-the author** — e.g. the chicken noodle soup from Joe Smith's _Soup Book_, not a random
-one. A page only qualifies if it matches the name **and** the book **or** the author;
-when several sites have it, the most reputable one with the strongest matching signals
-wins.
+asks Claude to search **the web** for a page that matches the **recipe name _and_ the book
+title**, and/or the **recipe name _and_ the author** — e.g. the chicken noodle soup from
+Joe Smith's _Soup Book_, not a random one. (Cookbook recipes get republished widely —
+publishers, the author's own site, PBS/NPR, magazines, well-known blogs — so search isn't
+limited to a fixed list.) A page only qualifies if it matches the name **and** the book
+**or** the author; when several sites have it, the most reputable one with the strongest
+matching signals wins.
 
 **What it validates before writing.** Every candidate is independently checked in our own
-code (nothing the model says is trusted): the host must be on the allowlist, the page
-must be reachable and **not a 404, a parked/placeholder page, or a paywall**. Paywalls
-are accepted **only** on the sites you subscribe to — **Epicurious, America's Test
-Kitchen, and NYT Cooking** — since you can open those.
+code (nothing the model says is trusted): https-only and SSRF-safe, reachable, and **not a
+404, a parked/placeholder page, or a paywall**. Paywalls are accepted **only** on the sites
+you subscribe to — **Epicurious, America's Test Kitchen, and NYT Cooking**.
+
+**Write policy (`RECIPE_LINK_ACCEPT`).** By default (`reputable`) a match is only written
+when it's on a **recognized reputable site** _or_ it matches **name + book + author**
+strongly — so unknown sites need high confidence. Set it to `any` to write **every** safe
+direct match (maximum coverage). Either way, each result shows as a raw URL in the app with
+a **Reject** button so you can prune anything off.
 
 **Re-runnable & idempotent.** It **never re-queries a recipe that already has a link**, so
 running it again after adding a new cookbook only does the new work. Configure the target
 column with `RECIPE_URL_COLUMN` (defaults to your existing **Recipe link** column; set it
 to use or auto-create a dedicated column). Found links flow straight into the app's
-**"has a link"** filter and the link button on each result.
+**"has a link"** filter and the link on each result.
 
 **Security controls.** This feature handles untrusted web content, so it leans on
 foundational controls — see the next section.
@@ -229,26 +235,29 @@ foundational controls — see the next section.
 The link finder treats the open web as hostile and keeps the decision to write inside our
 own deterministic code:
 
-- **Default-deny allowlist.** Search is constrained to a vetted list of reputable culinary
-  sites (Claude's `web_search` `allowed_domains`), and **only** URLs whose host is on that
-  same list are ever fetched or written. Look-alike/sub-domain spoofs are rejected.
 - **Strict URL safety.** https only (no `javascript:`/`data:`/`file:`), no embedded
   credentials, no IP-literal hosts, no odd ports.
 - **SSRF defense.** Loopback/private/link-local and cloud-metadata hosts are blocked, and
-  **every redirect hop is re-validated** so a trusted page can't bounce us off-allowlist.
+  **every redirect hop is re-validated** so a page can't bounce us to an internal address.
+- **Real-page + direct-match validation.** A candidate is rejected unless it's reachable,
+  not a 404/parked/placeholder page, not a disallowed paywall, and the page actually
+  matches the recipe name + book/author.
+- **Reputation write policy.** By default only matches on recognized reputable sites — or
+  with a strong name+book+author match — are written (`RECIPE_LINK_ACCEPT`), so a low-signal
+  match on an unknown domain isn't auto-saved. You also see every URL and can **Reject** it.
 - **Bounded fetching.** Per-request timeout, capped redirects, and a response-size cap;
   page HTML is only ever scanned as text, never executed.
 - **Prompt-injection resistance.** The model is told to treat page content as untrusted and
-  never follow instructions in it; more importantly, the model can only _propose_ URLs from
-  trusted domains — our code makes the final accept/write decision.
-- **Safe write-back.** Before writing, the script re-reads the sheet and only fills cells
-  whose recipe name is unchanged and that are still empty, so it can never overwrite the
-  wrong row. Writes use `RAW` mode and reject anything that isn't a clean trusted URL
-  (guarding against spreadsheet formula injection).
+  never follow instructions in it; the model only _proposes_ URLs — our code makes the final
+  validate/accept/write decision.
+- **Safe write-back.** Before writing, it re-reads the sheet and only fills cells whose
+  recipe name is unchanged and that are still empty, so it can never overwrite the wrong
+  row. Writes use `RAW` mode and reject anything that isn't a clean https URL (guarding
+  against spreadsheet formula injection).
 - **Cost guardrails.** A per-run recipe cap and bounded web-search uses keep an accidental
   full-catalogue run from running away.
 
-The pure logic behind these controls (allowlist, URL safety, match scoring) and the
+The pure logic behind these controls (reputation map, URL safety, match scoring) and the
 validation gate are covered by tests: `npm test`.
 
 ---
@@ -267,7 +276,7 @@ lib/
 scripts/
   find-recipe-urls.mjs    # scan trusted sites for recipe links, write to the sheet
   tag-cuisines.mjs        # batch-tag cuisines
-  lib/                    # allowlist, URL safety, validation gate, matching (+ tests)
+  lib/                    # reputation map, URL safety, validation gate, matching (+ tests)
 ```
 
 ## Cost
