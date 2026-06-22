@@ -24,13 +24,18 @@ function safeEqual(a: string, b: string): boolean {
  * Map a submitted password to a role: the owner password (APP_PASSWORD) grants
  * full access; the optional guest password (APP_GUEST_PASSWORD) grants
  * read-only access. Returns null when it matches neither.
+ *
+ * Surrounding whitespace is trimmed from both the configured values and the
+ * submission. Env vars pasted into a host dashboard very often pick up a
+ * trailing newline, which would otherwise make a correct password never match.
  */
 function roleForPassword(submitted: string): Role | null {
-  if (!submitted) return null;
-  const owner = process.env.APP_PASSWORD;
-  const guest = process.env.APP_GUEST_PASSWORD;
-  if (owner && safeEqual(submitted, owner)) return "owner";
-  if (guest && safeEqual(submitted, guest)) return "guest";
+  const candidate = submitted.trim();
+  if (!candidate) return null;
+  const owner = process.env.APP_PASSWORD?.trim();
+  const guest = process.env.APP_GUEST_PASSWORD?.trim();
+  if (owner && safeEqual(candidate, owner)) return "owner";
+  if (guest && safeEqual(candidate, guest)) return "guest";
   return null;
 }
 
