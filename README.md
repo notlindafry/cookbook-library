@@ -177,6 +177,56 @@ Re-run after adding lots of recipes.
 
 ---
 
+## Optional: import a new cookbook
+
+Bought a new cookbook? Instead of typing every recipe into the sheet by hand, hand the
+importer an itemized recipe list and it does the tedious part — assigning each recipe a
+**Category** and **Main ingredient** from your controlled vocabulary — then appends clean
+rows to the sheet.
+
+Make a plain-text list, one recipe per line (copy the recipe index from Eat Your Books
+and tidy it). See `scripts/examples/cookbook-import.example.txt`:
+
+```text
+Book: Ottolenghi Simple
+Author: Yotam Ottolenghi
+Chapter: Brunch
+Braised eggs with leek and za'atar | 28
+Cumin-spiced fritters | 30
+```
+
+`Book:` / `Author:` / `Chapter:` set the running context; every other line is a recipe
+(`Name | Page`, or a name with a trailing page number, or just a name). Then:
+
+```bash
+# Preview only — classifies and writes a CSV next to your list; nothing is added:
+npm run import-cookbook -- path/to/list.txt
+
+# Append the rows to the sheet for real:
+npm run import-cookbook -- path/to/list.txt --write
+```
+
+It reuses the **same Google service account as write-back** (to read the sheet and
+append) plus `ANTHROPIC_API_KEY` (to classify). It is safe by default:
+
+- **Dry-run first.** Without `--write` it only classifies and writes a preview CSV for you
+  to eyeball.
+- **Append-only, de-duplicated.** It never edits existing rows, and it skips any recipe
+  already in the sheet (matched on book + recipe name).
+- **Verified insertion.** It computes the first empty row after your last recipe and
+  re-reads that block to confirm it's empty before writing — so the legend/summary tables
+  below your data are never touched. If the data isn't a clean contiguous block, it
+  refuses to auto-write and tells you where to paste instead.
+- Verdict, prep-notes, and link columns are left blank (you fill verdicts; the `Find link`
+  button / bulk finder fill links later).
+
+Flags: `--no-classify` (skip Claude and fill Category/Main ingredient yourself),
+`--limit N` (cap rows this run), `--model NAME` (override the classifier model), `--out
+FILE` (preview path). After importing, re-run `npm run tag-cuisines` (refresh the cuisine
+filter) and `npm run find-urls` (find links for the new recipes).
+
+---
+
 ## Optional: find online recipe links
 
 There are two ways to find the online version of a recipe and write the URL back to your
@@ -291,9 +341,11 @@ lib/
   vocab.ts            # the sheet's controlled vocabularies
   types.ts            # shared types
 scripts/
+  import-cookbook.mjs     # classify a new book's recipes + append rows to the sheet
   find-recipe-urls.mjs    # scan trusted sites for recipe links, write to the sheet
   tag-cuisines.mjs        # batch-tag cuisines
-  lib/                    # reputation map, URL safety, validation gate, matching (+ tests)
+  examples/               # sample import list
+  lib/                    # vocab, sheets client, import/url/match logic (+ tests)
 ```
 
 ## Cost

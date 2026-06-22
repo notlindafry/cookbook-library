@@ -10,6 +10,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "node --test scripts/lib/*.test.mjs",
+    "import-cookbook": "node scripts/import-cookbook.mjs",
+    "tag-cuisines": "node scripts/tag-cuisines.mjs",
     "find-urls": "node scripts/find-recipe-urls.mjs"
   },
   "dependencies": {

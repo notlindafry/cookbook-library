@@ -140,3 +140,40 @@ export async function batchWriteColumn(col0, updates) {
   );
   if (!res.ok) throw new Error(`Sheet batch write failed (HTTP ${res.status}).`);
 }
+
+/** Read an explicit A1 range (e.g. "A5564:K5570") as a 2D array of strings. */
+export async function readRange(rangeA1) {
+  const token = await getAccessToken();
+  const id = process.env.SHEET_ID;
+  const tab = process.env.SHEET_TAB_NAME;
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${a1(tab, rangeA1)}` +
+      `?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) throw new Error(`Sheet read failed (HTTP ${res.status}).`);
+  const json = await res.json();
+  return (json.values ?? []).map((row) => row.map((c) => String(c ?? "")));
+}
+
+/**
+ * Write a rectangular block of values to an explicit A1 range. RAW so values are
+ * always stored verbatim, never interpreted as a formula. `rows` is a 2D array
+ * (one inner array per sheet row); its shape must match the range.
+ */
+export async function writeRange(rangeA1, rows) {
+  if (!rows.length) return;
+  const token = await getAccessToken();
+  const id = process.env.SHEET_ID;
+  const tab = process.env.SHEET_TAB_NAME;
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${a1(tab, rangeA1)}` +
+      `?valueInputOption=RAW`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: rows }),
+    },
+  );
+  if (!res.ok) throw new Error(`Sheet write failed (HTTP ${res.status}).`);
+}

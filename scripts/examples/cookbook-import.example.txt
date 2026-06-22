@@ -1,0 +1,33 @@
+// Cookbook import list — feed this to:  npm run import-cookbook <this-file>
+//
+// Format (forgiving plain text):
+//   Book:    <title>      sets the book for the lines that follow
+//   Author:  <name>       sets the author
+//   Chapter: <name>       sets the chapter for the lines that follow
+//   <recipe> | <page>     a recipe and its page number  (most reliable form)
+//   <recipe> <page>       a recipe with a trailing page number also works
+//   <recipe>              a recipe with no known page is fine too
+//   // ...                lines starting with // (or #) are comments
+//
+// Tips:
+//   • Copy the recipe index from Eat Your Books, then tidy it into these lines.
+//   • Prefer the "Name | Page" form — it's unambiguous even when a recipe name
+//     itself ends in a number (e.g. "Chili 65 | 142").
+//   • You can list several books in one file; each "Book:" starts a new one.
+//   • Category and Main ingredient are filled in automatically by Claude — leave
+//     them out here.
+
+Book: My New Cookbook
+Author: A. Chef
+
+Chapter: Starters
+Charred corn ribs with lime | 14
+Whipped feta dip | 16
+
+Chapter: Mains
+Sheet-pan harissa chicken | 88
+Brown-butter gnocchi with sage 102
+Slow-roast lamb shoulder | 110
+
+Chapter: Sweets
+Olive oil and almond cake | 196
