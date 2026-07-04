@@ -26,7 +26,11 @@ export default function RecipeCard({
   onToggleSave,
 }: Props) {
   const { recipe } = result;
-  const [triedTags, setTriedTags] = useState<string[]>(recipe.triedTags);
+  // Coerce list fields to arrays: a recipe restored from an older localStorage
+  // schema can be missing them, and `.map`/`.includes` on undefined would throw
+  // during render — an unrecoverable crash for the whole page.
+  const ingredients = recipe.ingredients ?? [];
+  const [triedTags, setTriedTags] = useState<string[]>(recipe.triedTags ?? []);
   const [notes, setNotes] = useState(recipe.notes);
   const [editingNote, setEditingNote] = useState(false);
   const [draftNote, setDraftNote] = useState(recipe.notes);
@@ -211,7 +215,7 @@ export default function RecipeCard({
       <div className="tags">
         {recipe.category && <span className="tag">{recipe.category}</span>}
         {recipe.cuisine && <span className="tag tag-cuisine">{recipe.cuisine}</span>}
-        {recipe.ingredients.map((i) => (
+        {ingredients.map((i) => (
           <span className="tag" key={i}>
             {i}
           </span>

@@ -15,6 +15,20 @@ import RecipeCard from "./components/RecipeCard";
 const WANT_TO_MAKE = "I really want to make this";
 const SHORTLIST_KEY = "cookbook.shortlist";
 
+// Only trust a persisted shortlist entry if it has the shape RecipeCard renders.
+// A malformed item (older schema, partial data) would otherwise throw during
+// render on every load — an unrecoverable blank error page the user can't escape.
+function isValidRecipe(value: unknown): value is Recipe {
+  if (!value || typeof value !== "object") return false;
+  const r = value as Record<string, unknown>;
+  return (
+    typeof r.id === "number" &&
+    typeof r.name === "string" &&
+    Array.isArray(r.ingredients) &&
+    Array.isArray(r.triedTags)
+  );
+}
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
@@ -63,7 +77,8 @@ export default function Home() {
       const raw = localStorage.getItem(SHORTLIST_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setShortlist(parsed as Recipe[]);
+        // Keep only well-formed entries; drop anything a render would choke on.
+        if (Array.isArray(parsed)) setShortlist(parsed.filter(isValidRecipe));
       }
     } catch {
       /* corrupt or unavailable storage; start empty */

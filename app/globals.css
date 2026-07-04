@@ -740,6 +740,30 @@ footer.foot {
   font-size: 13.5px;
 }
 
+/* Error-boundary recovery controls (app/error.tsx), reusing the login card. */
+.error-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.error-actions button.secondary {
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.error-actions button.secondary:hover {
+  border-color: var(--accent);
+  background: var(--chip);
+}
+
+.error-link {
+  color: var(--accent-bright);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
 .spinner {
   display: inline-block;
   width: 14px;
