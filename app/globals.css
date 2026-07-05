@@ -46,11 +46,12 @@ header.hero {
 }
 
 .hero h1 {
-  font-family: var(--font-serif), Georgia, serif;
-  font-weight: 400;
+  font-family: var(--font-serif), "Space Grotesk", ui-sans-serif, system-ui,
+    sans-serif;
+  font-weight: 700;
   font-size: clamp(32px, 6.5vw, 52px);
   margin: 0 0 6px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: var(--cream);
 }
 
@@ -677,8 +678,10 @@ footer.foot {
 }
 
 .login-card h1 {
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-family: var(--font-serif), "Space Grotesk", ui-sans-serif, system-ui,
+    sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   font-size: 28px;
   margin: 0 0 6px;
   color: var(--cream);
