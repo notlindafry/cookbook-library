@@ -1,18 +1,18 @@
 :root {
   color-scheme: dark;
-  --bg: #1b1f1d;
-  --surface: #242a27;
-  --surface-2: #2b322e;
-  --ink: #f2ecda;
-  --muted: #9aa39a;
-  --line: #353d39;
-  --accent: #4e9d68;
-  --accent-bright: #61b97f;
-  --accent-deep: #2f6b46;
-  --accent-soft: #29362d;
-  --cream: #f2ecda;
-  --chip: #2c332f;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.35);
+  --bg: #0f120d;
+  --surface: #1d231c;
+  --surface-2: #232b22;
+  --ink: #e6e4db;
+  --muted: rgba(230, 228, 219, 0.6);
+  --line: rgba(230, 228, 219, 0.14);
+  --accent: #7d9b83;
+  --accent-bright: #93ae99;
+  --accent-deep: #1d231c;
+  --accent-soft: rgba(125, 155, 131, 0.12);
+  --cream: #e6e4db;
+  --chip: #1d231c;
+  --shadow: none;
 }
 
 * {
@@ -90,7 +90,7 @@ form.search {
   padding: 0 22px;
   font-size: 16px;
   font-weight: 600;
-  color: #0f1411;
+  color: var(--bg);
   background: var(--accent);
   border: none;
   border-radius: 14px;
@@ -128,7 +128,7 @@ form.search {
 
 .chip:hover {
   background: var(--accent-soft);
-  border-color: var(--accent-deep);
+  border-color: var(--accent);
 }
 
 .filters {
@@ -160,7 +160,7 @@ form.search {
 }
 
 .ms-trigger:hover {
-  border-color: var(--accent-deep);
+  border-color: var(--accent);
 }
 
 .ms-active {
@@ -231,7 +231,7 @@ form.search {
   background: var(--bg);
   font-size: 12px;
   font-weight: 700;
-  color: #0f1411;
+  color: var(--bg);
 }
 
 .ms-checked .ms-box {
@@ -259,7 +259,7 @@ form.search {
   border: 1px solid var(--accent-deep);
   border-radius: 10px;
   padding: 10px 14px;
-  color: #cfe6d4;
+  color: var(--ink);
   font-size: 14px;
   margin: 12px 0;
 }
@@ -320,7 +320,7 @@ form.search {
 
 .card-title-meta .book {
   font-style: italic;
-  color: #c8c0ac;
+  color: var(--muted);
 }
 
 .card-title-meta .page {
@@ -346,12 +346,12 @@ form.search {
 
 .card .meta .book {
   font-style: italic;
-  color: #c8c0ac;
+  color: var(--muted);
 }
 
 .card .reason {
   font-size: 14px;
-  color: #cdc6b4;
+  color: var(--muted);
 }
 
 .card .tags {
@@ -366,7 +366,7 @@ form.search {
   padding: 3px 9px;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: #bfe0c8;
+  color: var(--ink);
   border: 1px solid var(--accent-deep);
 }
 
@@ -424,7 +424,7 @@ form.search {
 
 .action:hover {
   background: var(--accent-soft);
-  border-color: var(--accent-deep);
+  border-color: var(--accent);
 }
 
 .action:disabled {
@@ -456,7 +456,7 @@ form.search {
 .card-note {
   margin-top: 8px;
   font-size: 13.5px;
-  color: #cdc6b4;
+  color: var(--muted);
   background: var(--bg);
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
@@ -714,7 +714,7 @@ footer.foot {
   padding: 13px 15px;
   font-size: 16px;
   font-weight: 600;
-  color: #0f1411;
+  color: var(--bg);
   background: var(--accent);
   border: none;
   border-radius: 12px;
@@ -756,4 +756,10 @@ footer.foot {
   to {
     transform: rotate(360deg);
   }
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
