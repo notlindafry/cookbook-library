@@ -225,7 +225,8 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function clearFilters() {
+  function resetFilters() {
+    // Drop every filter selection...
     setCategories([]);
     setIngredients([]);
     setTriedTags([]);
@@ -235,6 +236,15 @@ export default function Home() {
     setCuisines([]);
     setUntriedOnly(false);
     setHasLink(false);
+    // ...and return to a clean slate: clear the query and any results so the
+    // reset is visible rather than leaving stale, now-unfiltered results on
+    // screen. The shortlist is intentionally left alone — it lives outside the
+    // search and persists across searches.
+    setQuery("");
+    setData(null);
+    setMenu(null);
+    setError(null);
+    setSearched(false);
   }
 
   async function logout() {
@@ -255,6 +265,11 @@ export default function Home() {
     cuisines.length > 0 ||
     untriedOnly ||
     hasLink;
+
+  // Offer the reset whenever there's something to undo — active filters, a
+  // typed query, or results already on screen — so it's reachable right after
+  // a search, not only once a filter chip happens to be set.
+  const canReset = hasFilters || query.trim().length > 0 || searched;
 
   const cuisineAvailable = meta?.features.cuisine ?? false;
 
@@ -317,9 +332,9 @@ export default function Home() {
           >
             {showMore ? "Fewer filters" : "More filters"}
           </button>
-          {hasFilters && (
-            <button type="button" className="clear" onClick={clearFilters}>
-              Clear filters
+          {canReset && (
+            <button type="button" className="clear" onClick={resetFilters}>
+              Reset filters
             </button>
           )}
         </div>
