@@ -29,6 +29,8 @@ export const INGREDIENTS = [
   "Poultry",
   "Sugar",
   "Tofu seitan or meat substitute",
+  "Herbs and Spices",
+  "Seeds and nuts",
   "Other",
   "N/A",
   "I don't know",
@@ -59,7 +61,9 @@ Notes: "Poultry" = chicken, turkey, duck. "Pork" = bacon, pancetta, chorizo, ham
 veal. "Beef or lamb" = steak, lamb, bison. "Fish" = all seafood/shellfish.
 "Pasta grain or bread" = rice, noodles, couscous, polenta, tortillas, dumplings,
 pizza, gnocchi. "Fruit or vegetable" = any produce. "Sugar" = desserts where fruit
-isn't the star. IMPORTANT: this column usually only records the PROTEIN, so a
+isn't the star. "Herbs and Spices" = basil, cilantro, mint, parsley, dill, cinnamon,
+cumin, paprika, etc. when the herb or spice is the star. "Seeds and nuts" = sesame,
+sunflower, pumpkin, chia, flax, poppy, almond, walnut, pecan, cashew, etc. IMPORTANT: this column usually only records the PROTEIN, so a
 chicken-and-pasta soup may be tagged only "Poultry". When a query names a food that
 isn't a protein (e.g. eggplant, pasta, mushroom), also put that word in "keywords".
 
