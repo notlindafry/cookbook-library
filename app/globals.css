@@ -320,7 +320,13 @@ form.search {
   font-size: 14px;
   font-weight: 400;
   color: var(--muted);
-  white-space: nowrap;
+  /* Let a long cookbook name wrap instead of forcing the whole
+     "| book | p. N" run onto one unbreakable line (which overflowed the
+     card off the right edge on narrow phone screens). min-width:0 lets this
+     flex item shrink below its content width; overflow-wrap breaks even a
+     single very long token as a last resort. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .card-title-meta .book {
@@ -330,6 +336,8 @@ form.search {
 
 .card-title-meta .page {
   color: var(--muted);
+  /* Keep "p. 42" together so it never wraps between "p." and the number. */
+  white-space: nowrap;
 }
 
 .title-sep {
