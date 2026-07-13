@@ -57,6 +57,7 @@ header.hero {
   margin: 0 0 6px;
   letter-spacing: -0.02em;
   color: var(--cream);
+  text-align: left;
 }
 
 .hero h1 .hyphen {
