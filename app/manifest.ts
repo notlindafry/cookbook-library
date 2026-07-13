@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Linda's Cookbook Collection Search",
-    short_name: "Cookbook",
+    name: "cookbook-finder",
+    short_name: "cookbook-finder",
     description: "Search Linda's cookbook collection in plain English.",
     start_url: "/",
     display: "standalone",

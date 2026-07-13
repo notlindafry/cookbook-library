@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Cookbook",
+    title: "cookbook-finder",
     statusBarStyle: "black-translucent",
   },
 };
