@@ -59,6 +59,10 @@ header.hero {
   color: var(--cream);
 }
 
+.hero h1 .hyphen {
+  color: var(--accent-bright);
+}
+
 .hero p {
   color: var(--muted);
   margin: 0;
