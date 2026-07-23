@@ -114,7 +114,7 @@ form.search {
   outline: none;
 }
 
-.search-clear {
+.search button.search-clear {
   position: absolute;
   top: 50%;
   right: 12px;
@@ -127,17 +127,17 @@ form.search {
   padding: 0;
   font-size: 20px;
   line-height: 1;
-  color: var(--text-faint);
+  color: var(--accent);
   background: transparent;
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease;
 }
 
-.search-clear:hover {
-  color: var(--text-strong);
-  background: var(--accent-dim);
+.search button.search-clear:hover {
+  background: transparent;
+  color: color-mix(in srgb, var(--accent), var(--text-strong) 20%);
 }
 
 .search input[type="text"]::placeholder {
